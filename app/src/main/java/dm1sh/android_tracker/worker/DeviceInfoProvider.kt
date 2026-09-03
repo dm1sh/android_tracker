@@ -17,10 +17,11 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 @Singleton
 class DeviceInfoProvider @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
 
     data class DeviceMetrics(
