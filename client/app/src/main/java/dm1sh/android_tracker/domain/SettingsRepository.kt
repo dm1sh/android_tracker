@@ -27,6 +27,8 @@ class SettingsRepository @Inject constructor(
         private val KEY_DEVICE_ID = stringPreferencesKey("device_id")
         private val KEY_LAST_FETCH_TIME = longPreferencesKey("last_fetch_time")
         private val KEY_LAST_PUSH_TIME = longPreferencesKey("last_push_time")
+        private val KEY_LAST_FETCH_ERROR = stringPreferencesKey("last_fetch_error")
+        private val KEY_LAST_PUSH_ERROR = stringPreferencesKey("last_push_error")
 
         const val DEFAULT_FETCH_INTERVAL_MIN = 30L
         const val DEFAULT_PUSH_INTERVAL_MIN = 60L
@@ -39,7 +41,9 @@ class SettingsRepository @Inject constructor(
         val pushIntervalMin: Long = DEFAULT_PUSH_INTERVAL_MIN,
         val deviceId: String = DEFAULT_DEVICE_ID,
         val lastFetchTime: Long = 0L,
-        val lastPushTime: Long = 0L
+        val lastPushTime: Long = 0L,
+        val lastFetchError: String? = null,
+        val lastPushError: String? = null
     ) {
         companion object {
             val DEFAULT_DEVICE_ID: String = Build.MODEL.ifBlank { Build.DEVICE }
@@ -53,7 +57,9 @@ class SettingsRepository @Inject constructor(
             pushIntervalMin = prefs[KEY_PUSH_INTERVAL_MIN] ?: DEFAULT_PUSH_INTERVAL_MIN,
             deviceId = prefs[KEY_DEVICE_ID] ?: Settings.DEFAULT_DEVICE_ID,
             lastFetchTime = prefs[KEY_LAST_FETCH_TIME] ?: 0L,
-            lastPushTime = prefs[KEY_LAST_PUSH_TIME] ?: 0L
+            lastPushTime = prefs[KEY_LAST_PUSH_TIME] ?: 0L,
+            lastFetchError = prefs[KEY_LAST_FETCH_ERROR],
+            lastPushError = prefs[KEY_LAST_PUSH_ERROR]
         )
     }
 
@@ -75,11 +81,37 @@ class SettingsRepository @Inject constructor(
         context.dataStore.edit { it[KEY_DEVICE_ID] = deviceId }
     }
 
-    suspend fun updateLastFetchTime(millis: Long) {
-        context.dataStore.edit { it[KEY_LAST_FETCH_TIME] = millis }
+    /** Atomically records the fetch run time and any error surfaced on that run. */
+    suspend fun setFetchStatus(fetchedAt: Long?, error: String?) {
+        context.dataStore.edit {
+            if (error == null) it.remove(KEY_LAST_FETCH_ERROR) else it[KEY_LAST_FETCH_ERROR] = error
+            if (fetchedAt != null) it[KEY_LAST_FETCH_TIME] = fetchedAt
+        }
     }
 
-    suspend fun updateLastPushTime(millis: Long) {
-        context.dataStore.edit { it[KEY_LAST_PUSH_TIME] = millis }
+    /** Atomically records the push run time and any error surfaced on that run. */
+    suspend fun setPushStatus(pushedAt: Long?, error: String?) {
+        context.dataStore.edit {
+            if (error == null) it.remove(KEY_LAST_PUSH_ERROR) else it[KEY_LAST_PUSH_ERROR] = error
+            if (pushedAt != null) it[KEY_LAST_PUSH_TIME] = pushedAt
+        }
+    }
+
+    /** Clears only the push error, e.g. when a manual push is triggered. */
+    suspend fun clearPushError() {
+        context.dataStore.edit { it.remove(KEY_LAST_PUSH_ERROR) }
+    }
+
+    /** Clears only the fetch error, e.g. when a manual local update is triggered. */
+    suspend fun clearFetchError() {
+        context.dataStore.edit { it.remove(KEY_LAST_FETCH_ERROR) }
+    }
+
+    /** Clears both fetch and push errors, e.g. when settings are reapplied. */
+    suspend fun clearErrors() {
+        context.dataStore.edit {
+            it.remove(KEY_LAST_FETCH_ERROR)
+            it.remove(KEY_LAST_PUSH_ERROR)
+        }
     }
 }

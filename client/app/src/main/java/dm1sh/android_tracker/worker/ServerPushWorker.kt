@@ -11,7 +11,9 @@ import dm1sh.android_tracker.domain.SettingsRepository
 
 /**
  * Pushes all unsynced local records to the server and marks them synced
- * once acknowledged. Intended to run with a NetworkType.CONNECTED constraint.
+ * once acknowledged. Runs once with no retries and records the push status
+ * (last run time and any error) for display in the UI. Intended to run with a
+ * NetworkType.CONNECTED constraint.
  */
 @HiltWorker
 class ServerPushWorker @AssistedInject constructor(
@@ -22,24 +24,14 @@ class ServerPushWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
+        val now = System.currentTimeMillis()
         val result = syncRepository.sync()
-        return if (result.error == null) {
-            if (result.pushedUsage > 0 || result.pushedMetrics > 0) {
-                settingsRepository.updateLastPushTime(System.currentTimeMillis())
-            }
+        if (result.error == null) {
+            settingsRepository.setPushStatus(pushedAt = now, error = null)
             Result.success()
         } else {
-            // Transient network errors -> retry; hard failures we still retry
-            // since we can't distinguish easily without HTTP codes.
-            if (runAttemptCount < MAX_RETRIES) {
-                Result.retry()
-            } else {
-                Result.success() // leave unsynced for next period rather than fail loudly
-            }
+            settingsRepository.setPushStatus(pushedAt = now, error = result.error)
+            Result.failure()
         }
-    }
-
-    companion object {
-        private const val MAX_RETRIES = 3
     }
 }

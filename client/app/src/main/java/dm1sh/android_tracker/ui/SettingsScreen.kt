@@ -44,6 +44,8 @@ fun SettingsContent(
     onGrantLocalNetwork: () -> Unit,
     onFormatTimestamp: (Long) -> String,
     onDismissHealthCheck: () -> Unit,
+    onSaveCancel: () -> Unit,
+    onSaveUrl: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -120,7 +122,19 @@ fun SettingsContent(
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Status", style = MaterialTheme.typography.titleMedium)
                 Text("Last fetch: ${onFormatTimestamp(state.lastFetchTime)}")
+                state.lastFetchError?.let { error ->
+                    Text(
+                        "Fetch error: $error",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 Text("Last push: ${onFormatTimestamp(state.lastPushTime)}")
+                state.lastPushError?.let { error ->
+                    Text(
+                        "Push error: $error",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
 
@@ -165,7 +179,7 @@ fun SettingsContent(
                     onClick = onRunLocalUpdate,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Run local DB update now")
+                    Text("Fetch events & metrics now")
                 }
 
                 OutlinedButton(
@@ -197,7 +211,9 @@ fun SettingsContent(
     HealthCheckDialog(
         state = state.healthCheck,
         onFormatTimestamp = onFormatTimestamp,
-        onDismiss = onDismissHealthCheck
+        onDismiss = onDismissHealthCheck,
+        onSaveCancel = onSaveCancel,
+        onSaveUrl = onSaveUrl
     )
 }
 
@@ -205,7 +221,9 @@ fun SettingsContent(
 private fun HealthCheckDialog(
     state: SettingsViewModel.HealthCheckState,
     onFormatTimestamp: (Long) -> String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onSaveCancel: () -> Unit,
+    onSaveUrl: () -> Unit
 ) {
     when (state) {
         SettingsViewModel.HealthCheckState.Idle -> Unit
@@ -252,6 +270,29 @@ private fun HealthCheckDialog(
                 text = { Text(state.message) },
                 confirmButton = {
                     TextButton(onClick = onDismiss) { Text("OK") }
+                }
+            )
+        }
+
+        is SettingsViewModel.HealthCheckState.SavePrompt -> {
+            AlertDialog(
+                onDismissRequest = onSaveCancel,
+                title = { Text("Server unreachable") },
+                text = {
+                    Column {
+                        Text(state.message)
+                        Text(
+                            "Save other settings anyway, or save with the new server URL?",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onSaveCancel) { Text("Cancel") }
+                },
+                confirmButton = {
+                    TextButton(onClick = onSaveUrl) { Text("Save") }
                 }
             )
         }

@@ -31,10 +31,17 @@ An Android application that periodically records device usage and metrics, store
 
 Two periodic works drive collection with independent intervals:
 
-- `usage-fetch` / `metrics-fetch` — interval from the **fetch interval** setting.
-- `server-push` — interval from the **push interval** setting, constrained to a connected network (`NetworkType.CONNECTED`).
+- `usage-fetch` — fetches usage events **and** captures device metrics in a
+  single run; interval from the **fetch interval** setting.
+- `server-push` — pushes unsynced records to the server; interval from the
+  **push interval** setting, constrained to a connected network
+  (`NetworkType.CONNECTED`).
 
 WorkManager enforces a **15-minute minimum** periodic interval; the UI clamps/validates inputs accordingly.
+
+Workers run once with **no retries**. If a run fails (e.g. usage access is
+missing or the server is unreachable), the failure is recorded in the status
+card rather than retried.
 
 ## Permissions
 

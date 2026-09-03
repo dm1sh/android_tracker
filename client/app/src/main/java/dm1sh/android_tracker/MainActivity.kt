@@ -104,6 +104,8 @@ fun TrackerScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             },
             onFormatTimestamp = viewModel::formatTimestamp,
             onDismissHealthCheck = viewModel::dismissHealthCheck,
+            onSaveCancel = viewModel::onSaveCancel,
+            onSaveUrl = viewModel::onSaveUrl,
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()

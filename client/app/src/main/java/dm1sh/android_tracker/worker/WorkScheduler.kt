@@ -24,7 +24,6 @@ class WorkScheduler @Inject constructor(
 
     companion object {
         const val USAGE_WORK_NAME = "usage-fetch"
-        const val METRICS_WORK_NAME = "metrics-fetch"
         const val PUSH_WORK_NAME = "server-push"
     }
 
@@ -43,7 +42,6 @@ class WorkScheduler @Inject constructor(
             .coerceAtLeast(SettingsRepository.MIN_PERIODIC_INTERVAL_MIN)
 
         val usageRequest = PeriodicWorkRequestBuilder<UsageWorker>(usageInterval, TimeUnit.MINUTES).build()
-        val metricsRequest = PeriodicWorkRequestBuilder<MetricsWorker>(usageInterval, TimeUnit.MINUTES).build()
         val pushRequest = PeriodicWorkRequestBuilder<ServerPushWorker>(pushInterval, TimeUnit.MINUTES)
             .setConstraints(pushConstraints())
             .build()
@@ -54,34 +52,21 @@ class WorkScheduler @Inject constructor(
             usageRequest
         )
         workManager.enqueueUniquePeriodicWork(
-            METRICS_WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            metricsRequest
-        )
-        workManager.enqueueUniquePeriodicWork(
             PUSH_WORK_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
             pushRequest
         )
     }
 
-    /** Manual run of the local DB update (fetch usage + capture metrics). */
+    /** Manual run of the local update (fetch usage + capture metrics in one worker). */
     fun runLocalUpdateNow() {
         val usage = OneTimeWorkRequestBuilder<UsageWorker>()
-            .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
-            .build()
-        val metrics = OneTimeWorkRequestBuilder<MetricsWorker>()
             .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
             .build()
         workManager.enqueueUniqueWork(
             USAGE_WORK_NAME + "-manual",
             ExistingWorkPolicy.REPLACE,
             usage
-        )
-        workManager.enqueueUniqueWork(
-            METRICS_WORK_NAME + "-manual",
-            ExistingWorkPolicy.REPLACE,
-            metrics
         )
     }
 

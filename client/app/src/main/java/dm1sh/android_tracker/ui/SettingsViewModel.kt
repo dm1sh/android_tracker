@@ -34,6 +34,7 @@ class SettingsViewModel @Inject constructor(
         data object Loading : HealthCheckState
         data class Success(val status: String, val serverTime: Long?) : HealthCheckState
         data class Error(val message: String) : HealthCheckState
+        data class SavePrompt(val message: String) : HealthCheckState
     }
 
     data class SettingsUiState(
@@ -48,10 +49,22 @@ class SettingsViewModel @Inject constructor(
         val unsyncedMetrics: Int = 0,
         val lastFetchTime: Long = 0L,
         val lastPushTime: Long = 0L,
+        val lastFetchError: String? = null,
+        val lastPushError: String? = null,
         val saving: Boolean = false,
         val healthCheck: HealthCheckState = HealthCheckState.Idle,
         val message: String? = null
     )
+
+    /** Pending, validated edits captured when a save is attempted but the server is unreachable. */
+    private data class PendingSave(
+        val url: String,
+        val fetchIntervalMin: Long,
+        val pushIntervalMin: Long,
+        val deviceId: String
+    )
+
+    private var pendingSave: PendingSave? = null
 
     private val _state = MutableStateFlow(SettingsUiState())
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
@@ -71,7 +84,9 @@ class SettingsViewModel @Inject constructor(
                     pushIntervalMin = s.pushIntervalMin.toString(),
                     deviceId = s.deviceId,
                     lastFetchTime = s.lastFetchTime,
-                    lastPushTime = s.lastPushTime
+                    lastPushTime = s.lastPushTime,
+                    lastFetchError = s.lastFetchError,
+                    lastPushError = s.lastPushError
                 )
             }
         }
@@ -131,6 +146,7 @@ class SettingsViewModel @Inject constructor(
         }
 
         val url = current.serverUrl.trim()
+        val deviceId = current.deviceId.ifBlank { SettingsRepository.Settings.DEFAULT_DEVICE_ID }
         _state.value = current.copy(saving = true, message = null)
         viewModelScope.launch {
             if (url.isBlank()) {
@@ -143,22 +159,65 @@ class SettingsViewModel @Inject constructor(
 
             try {
                 val health = trackerApi.health(url)
+                pendingSave = PendingSave(url, fetch, push, deviceId)
                 _state.value = _state.value.copy(
                     healthCheck = HealthCheckState.Success(health.status, health.serverTime)
                 )
-
-                settingsRepository.updateServerUrl(url)
-                settingsRepository.updateFetchInterval(fetch)
-                settingsRepository.updatePushInterval(push)
-                settingsRepository.updateDeviceId(current.deviceId.ifBlank { SettingsRepository.Settings.DEFAULT_DEVICE_ID })
-                workScheduler.rescheduleAll()
-                _state.value = _state.value.copy(saving = false, message = "Settings saved")
+                doSave(includeUrl = true)
             } catch (e: Exception) {
+                pendingSave = PendingSave(url, fetch, push, deviceId)
                 _state.value = _state.value.copy(
                     saving = false,
-                    healthCheck = HealthCheckState.Error(e.message ?: e.javaClass.simpleName)
+                    healthCheck = HealthCheckState.SavePrompt(e.message ?: e.javaClass.simpleName)
                 )
             }
+        }
+    }
+
+    /**
+     * Persists the pending edits. When [includeUrl] is true the (possibly new)
+     * server URL is saved; otherwise only the other fields are saved and the
+     * previous server URL is left untouched. Always reschedules the workers and
+     * clears prior errors.
+     */
+    private fun doSave(includeUrl: Boolean) {
+        val pending = pendingSave ?: return
+        viewModelScope.launch {
+            if (includeUrl) {
+                settingsRepository.updateServerUrl(pending.url)
+            }
+            settingsRepository.updateFetchInterval(pending.fetchIntervalMin)
+            settingsRepository.updatePushInterval(pending.pushIntervalMin)
+            settingsRepository.updateDeviceId(pending.deviceId)
+            settingsRepository.clearErrors()
+            workScheduler.rescheduleAll()
+            pendingSave = null
+            _state.value = _state.value.copy(
+                saving = false,
+                message = "Settings saved"
+            )
+        }
+    }
+
+    /**
+     * Handler for the "Cancel" button of the save-prompt dialog: save everything
+     * except the server URL, which is left unchanged.
+     */
+    fun onSaveCancel() {
+        _state.value = _state.value.copy(healthCheck = HealthCheckState.Idle)
+        doSave(includeUrl = false)
+    }
+
+    /**
+     * Handler for the "Save" button of the save-prompt dialog: save the server
+     * URL as well.
+     */
+    fun onSaveUrl() {
+        _state.value = _state.value.copy(healthCheck = HealthCheckState.Idle)
+        if (pendingSave?.url?.isBlank() == true) {
+            doSave(includeUrl = false)
+        } else {
+            doSave(includeUrl = true)
         }
     }
 
@@ -177,12 +236,18 @@ class SettingsViewModel @Inject constructor(
 
     fun runLocalUpdate() {
         workScheduler.runLocalUpdateNow()
-        _state.value = _state.value.copy(message = "Local update scheduled")
+        viewModelScope.launch {
+            settingsRepository.clearFetchError()
+        }
+        _state.value = _state.value.copy(message = "Fetch & metrics scheduled — status updates below")
     }
 
     fun runPush() {
         workScheduler.runPushNow()
-        _state.value = _state.value.copy(message = "Server push scheduled")
+        viewModelScope.launch {
+            settingsRepository.clearPushError()
+        }
+        _state.value = _state.value.copy(message = "Push scheduled — status updates below")
     }
 
     fun clearMessage() {
