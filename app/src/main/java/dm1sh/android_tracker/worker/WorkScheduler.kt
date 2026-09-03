@@ -1,6 +1,7 @@
 package dm1sh.android_tracker.worker
 
 import android.content.Context
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -8,7 +9,6 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.WorkRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dm1sh.android_tracker.domain.SettingsRepository
 import kotlinx.coroutines.flow.first
@@ -68,10 +68,10 @@ class WorkScheduler @Inject constructor(
     /** Manual run of the local DB update (fetch usage + capture metrics). */
     fun runLocalUpdateNow() {
         val usage = OneTimeWorkRequestBuilder<UsageWorker>()
-            .setBackoffCriteria(WorkRequest.DEFAULT_BACKOFF_POLICY, 10, TimeUnit.SECONDS)
+            .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
             .build()
         val metrics = OneTimeWorkRequestBuilder<MetricsWorker>()
-            .setBackoffCriteria(WorkRequest.DEFAULT_BACKOFF_POLICY, 10, TimeUnit.SECONDS)
+            .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
             .build()
         workManager.enqueueUniqueWork(
             USAGE_WORK_NAME + "-manual",
@@ -89,7 +89,7 @@ class WorkScheduler @Inject constructor(
     fun runPushNow() {
         val push = OneTimeWorkRequestBuilder<ServerPushWorker>()
             .setConstraints(pushConstraints())
-            .setBackoffCriteria(WorkRequest.DEFAULT_BACKOFF_POLICY, 10, TimeUnit.SECONDS)
+            .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
             .build()
         workManager.enqueueUniqueWork(
             PUSH_WORK_NAME + "-manual",
