@@ -1,7 +1,7 @@
 # Tracker Server
 
 Backend for the **Android Tracker** app. Receives usage events and device
-metrics from one or more devices (identified by `deviceId`), stores them in a
+metrics from one or more devices (identified by `deviceName`), stores them in a
 **PostgreSQL** database, and provides idempotent batch ingestion so clients can
 retry safely.
 
@@ -66,7 +66,7 @@ but the endpoint still returns `ok`.
 
 ```json
 {
-  "deviceId": "Google_Pixel_8",
+  "deviceName": "Google_Pixel_8",
   "events": [
     { "clientId": 123, "eventType": 1, "packageName": "com.example",
       "className": "MainActivity", "timestamp": 1710000000000 }
@@ -78,15 +78,29 @@ but the endpoint still returns `ok`.
 
 ```json
 {
-  "deviceId": "Google_Pixel_8",
+  "deviceName": "Google_Pixel_8",
   "metrics": [
     { "clientId": 456, "capturedAt": 1710000000000, "batteryLevel": 87,
-      "batteryState": "CHARGING", "storageFreeBytes": 204800000000,
-      "storageTotalBytes": 256000000000, "networkState": "WIFI",
+      "batteryState": 2, "storageFreeBytes": 204800000000,
+      "storageTotalBytes": 256000000000, "networkState": 1,
       "wifiSsid": "MyNetwork" }
   ]
 }
 ```
+
+`batteryState` is the raw Android `BatteryManager.BATTERY_STATUS_*` constant:
+
+| Value | Meaning       |
+|-------|---------------|
+| `1`   | `UNKNOWN`     |
+| `2`   | `CHARGING`    |
+| `3`   | `DISCHARGING` |
+| `4`   | `NOT_CHARGING`|
+| `5`   | `FULL`        |
+
+`networkState` is the raw `NetworkCapabilities.TRANSPORT_*` constant
+(`CELLULAR=0`, `WIFI=1`, `BLUETOOTH=2`, `ETHERNET=3`); `NONE`/`VPN`/`OTHER`
+are sent as `null`.
 
 Both batch endpoints respond `200` with:
 
@@ -95,5 +109,28 @@ Both batch endpoints respond `200` with:
 ```
 
 - `acceptedClientIds` — ids that were inserted for the first time.
-- `rejected` — ids that were already present (`(deviceId, clientId)` unique),
-  reason `"duplicate"`.
+- `rejected` — ids that were already present
+  (`(device_ref, client_id)` unique), reason `"duplicate"`.
+
+## Database schema & migrations
+
+The schema is evolved with an ordered, idempotent migration framework
+(`tracker_server/migrations`). On startup `db.init_schema()` applies each
+pending migration once, in its own transaction, tracking applied versions in
+the `schema_migrations` table. Add a future change as a new module with a newer
+`version` and register it in `migrations/__init__.py` `MIGRATIONS`.
+
+Highlights:
+
+- `devices` is keyed by `id`, with a unique `device_name`.
+- `packages`, `classes`, `wifi` are dictionary tables; `usage_events` /
+  `device_metrics` reference them by numeric id (`package_ref`, `class_ref`,
+  `wifi_ref`).
+- Epoch-millis ints on the wire are stored as `TIMESTAMPTZ`
+  (`to_timestamp(millis / 1000.0)`); `class_ref` and `wifi_ref` are nullable.
+- Ingestion is deduplicated on `(device_ref, client_id)`.
+
+> **Breaking change (schema v2):** JSON fields renamed `deviceId` -> `deviceName`,
+> `batteryState`/`networkState` became `int|null`, and the storage layout
+> changed. The schema upgrade is applied automatically in place on existing
+> databases, but old-format clients must be updated to the new wire format.

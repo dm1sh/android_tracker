@@ -3,9 +3,9 @@
 import logging
 
 from psycopg_pool import AsyncConnectionPool
-from psycopg import sql
 
 from tracker_server.config import settings
+from tracker_server.migrations import MIGRATIONS
 
 logger = logging.getLogger("tracker_server.db")
 
@@ -43,53 +43,59 @@ async def get_pool() -> AsyncConnectionPool:
     return pool
 
 
-SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS devices (
-    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    device_id     TEXT NOT NULL UNIQUE,
-    first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_seen_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS usage_events (
-    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    device_id    TEXT   NOT NULL REFERENCES devices(device_id),
-    client_id    BIGINT NOT NULL,
-    event_type   INT    NOT NULL,
-    package_name TEXT   NOT NULL,
-    class_name   TEXT,
-    timestamp    BIGINT NOT NULL,
-    received_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_usage_device_client UNIQUE (device_id, client_id)
-);
-CREATE INDEX IF NOT EXISTS idx_usage_device_time
-    ON usage_events (device_id, timestamp);
-
-CREATE TABLE IF NOT EXISTS device_metrics (
-    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    device_id           TEXT   NOT NULL REFERENCES devices(device_id),
-    client_id           BIGINT NOT NULL,
-    captured_at         BIGINT NOT NULL,
-    battery_level       INT,
-    battery_state       TEXT,
-    storage_free_bytes  BIGINT,
-    storage_total_bytes BIGINT,
-    network_state       TEXT,
-    wifi_ssid           TEXT,
-    received_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_metrics_device_client UNIQUE (device_id, client_id)
-);
-CREATE INDEX IF NOT EXISTS idx_metrics_device_time
-    ON device_metrics (device_id, captured_at);
+_CREATE_MIGRATIONS_TABLE = """
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version    TEXT PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)
 """
 
 
+async def _migration_applied(cur, version: str) -> bool:
+    await cur.execute(
+        "SELECT 1 FROM schema_migrations WHERE version = %s", (version,)
+    )
+    return (await cur.fetchone()) is not None
+
+
+async def _record_applied(cur, version: str) -> None:
+    await cur.execute(
+        "INSERT INTO schema_migrations (version) VALUES (%s) ON CONFLICT (version) DO NOTHING",
+        (version,),
+    )
+
+
 async def init_schema() -> None:
-    """Apply the schema idempotently at application startup."""
+    """Ensure the schema is up to date by applying pending migrations."""
     p = await get_pool()
-    async with p.connection() as conn, conn.cursor() as cur:
-        await cur.execute(SCHEMA_SQL)
-        await conn.commit()
+    async with p.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(_CREATE_MIGRATIONS_TABLE)
+
+            for migration in MIGRATIONS:
+                if await _migration_applied(cur, migration.version):
+                    logger.info("Migration %s already applied", migration.version)
+                    continue
+
+                # If the version's resulting state already exists (pre-existing
+                # database), record it without running its DDL.
+                await cur.execute(migration.applied_check)
+                already_present = (await cur.fetchone())[0] is True
+                if already_present:
+                    logger.info(
+                        "Migration %s state already present, recording without DDL",
+                        migration.version,
+                    )
+                    await _record_applied(cur, migration.version)
+                    await conn.commit()
+                    continue
+
+                for statement in migration.statements:
+                    await cur.execute(statement)
+                await _record_applied(cur, migration.version)
+                await conn.commit()
+                logger.info("Applied migration %s", migration.version)
+
     logger.info("Database schema is ready")
 
 
@@ -102,8 +108,3 @@ async def db_is_healthy() -> bool:
         return True
     except Exception:
         return False
-
-
-def quote_ident(name: str) -> sql.Composed:
-    """Build a safely quoted identifier for dynamic table names."""
-    return sql.Identifier(name)

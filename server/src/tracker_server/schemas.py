@@ -12,7 +12,7 @@ class UsageEvent(BaseModel):
 
 
 class UsageBatchRequest(BaseModel):
-    deviceId: str = Field(min_length=1)
+    deviceName: str = Field(min_length=1)
     events: list[UsageEvent] = Field(default_factory=list)
 
 
@@ -20,15 +20,15 @@ class DeviceMetric(BaseModel):
     clientId: int
     capturedAt: int
     batteryLevel: int | None = None
-    batteryState: str | None = None
+    batteryState: int | None = None
     storageFreeBytes: int | None = None
     storageTotalBytes: int | None = None
-    networkState: str | None = None
+    networkState: int | None = None
     wifiSsid: str | None = None
 
 
 class MetricsBatchRequest(BaseModel):
-    deviceId: str = Field(min_length=1)
+    deviceName: str = Field(min_length=1)
     metrics: list[DeviceMetric] = Field(default_factory=list)
 
 
