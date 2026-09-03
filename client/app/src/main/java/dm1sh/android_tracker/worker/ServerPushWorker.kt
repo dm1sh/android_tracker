@@ -26,7 +26,7 @@ class ServerPushWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val now = System.currentTimeMillis()
         val result = syncRepository.sync()
-        if (result.error == null) {
+        return if (result.error == null) {
             settingsRepository.setPushStatus(pushedAt = now, error = null)
             Result.success()
         } else {
