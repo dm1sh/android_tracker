@@ -65,6 +65,7 @@ Toolchain used by the project:
 Open the project in Android Studio, or build locally from the command line:
 
 ```bash
+cd client
 ./gradlew :app:assembleDebug
 ```
 
