@@ -78,6 +78,64 @@ cd client
 
 The resulting APK is written to `app/build/outputs/apk/debug/`.
 
+## Local self-contained toolchain
+
+For development and debugging without any system-wide JDK or Android SDK
+installed, this project keeps its own toolchain **inside the `client/`
+directory**. It is git-ignored, so it never affects the CI build.
+
+| Directory | Contents |
+|-----------|----------|
+| `client/.java-jre/` | Temurin JDK 17 (`jdk-17.0.20.1+1`) |
+| `client/.android-sdk/` | Android SDK command-line tools, `platforms;android-37.0`, `build-tools;37.0.0`, `platform-tools` (includes `adb`) |
+
+The `client/local.properties` file points Gradle at the local SDK
+(`sdk.dir=.android-sdk`). It is git-ignored and not required by CI (which
+installs its own SDK via GitHub Actions).
+
+To build with the local toolchain, set `JAVA_HOME` to the bundled JDK:
+
+```bash
+cd client
+JAVA_HOME="$(pwd)/.java-jre/jdk-17.0.20.1+1" ./gradlew :app:assembleDebug
+```
+
+For convenience in interactive shells, you can export the paths once:
+
+```bash
+export JAVA_HOME="$(pwd)/.java-jre/jdk-17.0.20.1+1"
+export PATH="$JAVA_HOME/bin:$(pwd)/.android-sdk/platform-tools:$PATH"
+```
+
+### Re-creating the toolchain from scratch
+
+If the `.java-jre/` or `.android-sdk/` directories are deleted, they can be
+rebuilt with:
+
+```bash
+cd client
+
+# JDK 17 (Temurin)
+mkdir -p .java-jre
+curl -fSL -o /tmp/jdk17.tar.gz \
+  "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jdk_x64_linux_hotspot_17.0.20.1_1.tar.gz"
+tar xzf /tmp/jdk17.tar.gz -C .java-jre
+rm /tmp/jdk17.tar.gz
+
+# Android SDK command-line tools
+mkdir -p .android-sdk/cmdline-tools
+curl -fSL -o /tmp/cmdline-tools.zip \
+  "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip"
+unzip -q /tmp/cmdline-tools.zip -d /tmp
+mv /tmp/cmdline-tools .android-sdk/cmdline-tools/latest
+rm /tmp/cmdline-tools.zip
+
+# Install SDK packages (note: target dirs are used as-is; delete any
+# left-over "-2" duplicates if a previous install was interrupted)
+yes | .android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=.android-sdk \
+  "platform-tools" "build-tools;37.0.0" "platforms;android-37.0"
+```
+
 ## Server API
 
 JSON over HTTP, no authentication. Every request includes a `deviceId`; the server should deduplicate by `(deviceId, clientId)` so retries are idempotent. On success the client marks only the acknowledged `clientId`s as synced.

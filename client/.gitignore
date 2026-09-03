@@ -16,6 +16,10 @@ local.properties
 *.keystore
 !debug.keystore
 
+# Local toolchain (self-contained JDK + Android SDK)
+.java-jre/
+.android-sdk/
+
 # IDE
 .idea/
 *.iml
