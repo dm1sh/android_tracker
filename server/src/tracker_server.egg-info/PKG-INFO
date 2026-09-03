@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: tracker-server
+Version: 0.1.0
+Summary: Server for the Android Tracker app: ingests usage events and device metrics from multiple devices into PostgreSQL.
+Requires-Python: >=3.12
+Requires-Dist: fastapi<0.142,>=0.141
+Requires-Dist: uvicorn[standard]<0.35,>=0.30
+Requires-Dist: psycopg[binary,pool]<3.4,>=3.3
