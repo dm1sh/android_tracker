@@ -17,8 +17,8 @@ from tracker_server.db import get_pool
 
 logger = logging.getLogger("tracker_server.ingest")
 
-_DEVICE_UPSERT = sql.SQL(
-    "INSERT INTO devices (device_id) VALUES ({0}) "
+_DEVICE_UPSERT = (
+    "INSERT INTO devices (device_id) VALUES (%s) "
     "ON CONFLICT (device_id) DO UPDATE SET last_seen_at = now()"
 )
 
