@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dm1sh.android_tracker.data.repository.SyncRepository
+import dm1sh.android_tracker.domain.SettingsRepository
 
 /**
  * Pushes all unsynced local records to the server and marks them synced
@@ -16,12 +17,16 @@ import dm1sh.android_tracker.data.repository.SyncRepository
 class ServerPushWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
-    private val syncRepository: SyncRepository
+    private val syncRepository: SyncRepository,
+    private val settingsRepository: SettingsRepository
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
         val result = syncRepository.sync()
         return if (result.error == null) {
+            if (result.pushedUsage > 0 || result.pushedMetrics > 0) {
+                settingsRepository.updateLastPushTime(System.currentTimeMillis())
+            }
             Result.success()
         } else {
             // Transient network errors -> retry; hard failures we still retry

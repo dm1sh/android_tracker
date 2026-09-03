@@ -7,16 +7,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +42,8 @@ fun SettingsContent(
     onGrantUsageAccess: () -> Unit,
     onGrantLocation: () -> Unit,
     onGrantLocalNetwork: () -> Unit,
+    onFormatTimestamp: (Long) -> String,
+    onDismissHealthCheck: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -109,6 +115,15 @@ fun SettingsContent(
             }
         }
 
+        // Status
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Status", style = MaterialTheme.typography.titleMedium)
+                Text("Last fetch: ${onFormatTimestamp(state.lastFetchTime)}")
+                Text("Last push: ${onFormatTimestamp(state.lastPushTime)}")
+            }
+        }
+
         // Permissions
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
@@ -177,6 +192,69 @@ fun SettingsContent(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+    }
+
+    HealthCheckDialog(
+        state = state.healthCheck,
+        onFormatTimestamp = onFormatTimestamp,
+        onDismiss = onDismissHealthCheck
+    )
+}
+
+@Composable
+private fun HealthCheckDialog(
+    state: SettingsViewModel.HealthCheckState,
+    onFormatTimestamp: (Long) -> String,
+    onDismiss: () -> Unit
+) {
+    when (state) {
+        SettingsViewModel.HealthCheckState.Idle -> Unit
+
+        SettingsViewModel.HealthCheckState.Loading -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("Checking server...") },
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Text("Contacting /api/v1/health")
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+
+        is SettingsViewModel.HealthCheckState.Success -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("Server reachable") },
+                text = {
+                    Column {
+                        Text("Status: ${state.status}")
+                        state.serverTime?.let { serverTime ->
+                            Text("Server time: ${onFormatTimestamp(serverTime)}")
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = onDismiss) { Text("OK") }
+                }
+            )
+        }
+
+        is SettingsViewModel.HealthCheckState.Error -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("Server check failed") },
+                text = { Text(state.message) },
+                confirmButton = {
+                    TextButton(onClick = onDismiss) { Text("OK") }
+                }
+            )
+        }
     }
 }
 

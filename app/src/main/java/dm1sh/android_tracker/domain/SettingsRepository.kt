@@ -25,6 +25,8 @@ class SettingsRepository @Inject constructor(
         private val KEY_FETCH_INTERVAL_MIN = longPreferencesKey("fetch_interval_min")
         private val KEY_PUSH_INTERVAL_MIN = longPreferencesKey("push_interval_min")
         private val KEY_DEVICE_ID = stringPreferencesKey("device_id")
+        private val KEY_LAST_FETCH_TIME = longPreferencesKey("last_fetch_time")
+        private val KEY_LAST_PUSH_TIME = longPreferencesKey("last_push_time")
 
         const val DEFAULT_FETCH_INTERVAL_MIN = 30L
         const val DEFAULT_PUSH_INTERVAL_MIN = 60L
@@ -35,7 +37,9 @@ class SettingsRepository @Inject constructor(
         val serverUrl: String = "",
         val fetchIntervalMin: Long = DEFAULT_FETCH_INTERVAL_MIN,
         val pushIntervalMin: Long = DEFAULT_PUSH_INTERVAL_MIN,
-        val deviceId: String = DEFAULT_DEVICE_ID
+        val deviceId: String = DEFAULT_DEVICE_ID,
+        val lastFetchTime: Long = 0L,
+        val lastPushTime: Long = 0L
     ) {
         companion object {
             val DEFAULT_DEVICE_ID: String = Build.MODEL.ifBlank { Build.DEVICE }
@@ -47,7 +51,9 @@ class SettingsRepository @Inject constructor(
             serverUrl = prefs[KEY_SERVER_URL] ?: "",
             fetchIntervalMin = prefs[KEY_FETCH_INTERVAL_MIN] ?: DEFAULT_FETCH_INTERVAL_MIN,
             pushIntervalMin = prefs[KEY_PUSH_INTERVAL_MIN] ?: DEFAULT_PUSH_INTERVAL_MIN,
-            deviceId = prefs[KEY_DEVICE_ID] ?: Settings.DEFAULT_DEVICE_ID
+            deviceId = prefs[KEY_DEVICE_ID] ?: Settings.DEFAULT_DEVICE_ID,
+            lastFetchTime = prefs[KEY_LAST_FETCH_TIME] ?: 0L,
+            lastPushTime = prefs[KEY_LAST_PUSH_TIME] ?: 0L
         )
     }
 
@@ -67,5 +73,13 @@ class SettingsRepository @Inject constructor(
 
     suspend fun updateDeviceId(deviceId: String) {
         context.dataStore.edit { it[KEY_DEVICE_ID] = deviceId }
+    }
+
+    suspend fun updateLastFetchTime(millis: Long) {
+        context.dataStore.edit { it[KEY_LAST_FETCH_TIME] = millis }
+    }
+
+    suspend fun updateLastPushTime(millis: Long) {
+        context.dataStore.edit { it[KEY_LAST_PUSH_TIME] = millis }
     }
 }

@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dm1sh.android_tracker.data.repository.UsageRepository
+import dm1sh.android_tracker.domain.SettingsRepository
 
 /**
  * Fetches UsageStatsManager events since the last recorded event and
@@ -16,12 +17,16 @@ import dm1sh.android_tracker.data.repository.UsageRepository
 class UsageWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
-    private val usageRepository: UsageRepository
+    private val usageRepository: UsageRepository,
+    private val settingsRepository: SettingsRepository
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
         return try {
-            usageRepository.fetchAndStore()
+            val count = usageRepository.fetchAndStore()
+            if (count > 0) {
+                settingsRepository.updateLastFetchTime(System.currentTimeMillis())
+            }
             Result.success()
         } catch (e: Exception) {
             if (runAttemptCount < MAX_RETRIES) {

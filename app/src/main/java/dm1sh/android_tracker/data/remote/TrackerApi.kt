@@ -2,6 +2,7 @@ package dm1sh.android_tracker.data.remote
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -37,6 +38,11 @@ class TrackerApi @Inject constructor(
     }
 
     suspend fun health(baseUrl: String): HealthResponse {
-        return client.get("$baseUrl/api/v1/health").body()
+        return client.get("$baseUrl/api/v1/health") {
+            timeout {
+                requestTimeoutMillis = 5_000
+                connectTimeoutMillis = 5_000
+            }
+        }.body()
     }
 }

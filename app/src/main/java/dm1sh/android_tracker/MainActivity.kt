@@ -18,10 +18,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import dm1sh.android_tracker.ui.SettingsContent
@@ -47,14 +47,15 @@ fun TrackerScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    val usageGranted = remember { hasUsageAccess(context) }
-    val localNetworkGranted = remember { hasLocalNetworkPermission(context) }
-    val locationGranted = remember { hasLocationPermission(context) }
+    LifecycleResumeEffect(Unit) {
+        viewModel.setUsageAccessGranted(hasUsageAccess(context))
+        viewModel.setLocalNetworkGranted(hasLocalNetworkPermission(context))
+        viewModel.setLocationGranted(hasLocationPermission(context))
+
+        onPauseOrDispose { }
+    }
 
     LaunchedEffect(Unit) {
-        viewModel.setUsageAccessGranted(usageGranted)
-        viewModel.setLocalNetworkGranted(localNetworkGranted)
-        viewModel.setLocationGranted(locationGranted)
         viewModel.scheduleWorkersOnStart()
     }
 
@@ -101,6 +102,8 @@ fun TrackerScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     localNetworkLauncher.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
                 }
             },
+            onFormatTimestamp = viewModel::formatTimestamp,
+            onDismissHealthCheck = viewModel::dismissHealthCheck,
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
