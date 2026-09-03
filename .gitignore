@@ -1,0 +1,30 @@
+# Gradle
+.gradle/
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android / Kotlin
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+local.properties
+*.keystore
+!debug.keystore
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+captures/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flutter / React Native (if applicable)
+.kotlin/
