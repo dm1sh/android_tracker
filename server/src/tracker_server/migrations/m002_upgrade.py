@@ -42,15 +42,10 @@ MIGRATION = Migration(
         "ALTER TABLE usage_events ADD COLUMN timestamp_ts TIMESTAMPTZ",
         """
         UPDATE usage_events AS ue
-        SET device_ref   = d.id,
-            package_ref  = p.id,
-            class_ref    = c.id,
+        SET device_ref   = (SELECT d.id FROM devices AS d WHERE d.device_name = ue.device_id),
+            package_ref  = (SELECT p.id FROM packages AS p WHERE p.name = ue.package_name),
+            class_ref    = (SELECT c.id FROM classes AS c WHERE c.name = ue.class_name),
             timestamp_ts = to_timestamp(ue.timestamp / 1000.0)
-        FROM devices AS d
-        CROSS JOIN packages AS p
-        LEFT JOIN classes AS c ON c.name = ue.class_name
-        WHERE d.device_name = ue.device_id
-          AND p.name = ue.package_name
         """,
         # ---- usage_events: enforce refs, drop old columns, re-key ----
         "ALTER TABLE usage_events ALTER COLUMN device_ref SET NOT NULL",
@@ -73,8 +68,8 @@ MIGRATION = Migration(
         "ALTER TABLE device_metrics ADD COLUMN network_state_int INT",
         """
         UPDATE device_metrics AS dm
-        SET device_ref        = d.id,
-            wifi_ref          = w.id,
+        SET device_ref        = (SELECT d.id FROM devices AS d WHERE d.device_name = dm.device_id),
+            wifi_ref          = (SELECT w.id FROM wifi AS w WHERE w.ssid = dm.wifi_ssid),
             captured_at_ts    = to_timestamp(dm.captured_at / 1000.0),
             battery_state_int = CASE dm.battery_state
                 WHEN 'UNKNOWN'      THEN 1
@@ -89,9 +84,6 @@ MIGRATION = Migration(
                 WHEN 'BLUETOOTH'  THEN 2
                 WHEN 'ETHERNET'   THEN 3
                 ELSE NULL END
-        FROM devices AS d
-        LEFT JOIN wifi AS w ON w.ssid = dm.wifi_ssid
-        WHERE d.device_name = dm.device_id
         """,
         # ---- device_metrics: enforce refs, drop old columns, re-key ----
         "ALTER TABLE device_metrics ALTER COLUMN device_ref SET NOT NULL",
