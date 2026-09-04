@@ -55,8 +55,9 @@ class UsageRepository @Inject constructor(
         }
         if (entities.isEmpty()) return 0
 
-        usageEventDao.insertAll(entities)
-        return entities.size
+        val deduped = entities.distinctBy { it.id }
+        usageEventDao.insertAll(deduped)
+        return deduped.size
     }
 
     private fun isUserUnlocked(): Boolean {
