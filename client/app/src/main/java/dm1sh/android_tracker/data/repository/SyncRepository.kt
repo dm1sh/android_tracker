@@ -21,7 +21,7 @@ import javax.inject.Singleton
  * (the server already has them). Other rejections remain unsynced for retry.
  */
 @Singleton
-class SyncRepository @Inject constructor(
+class SyncRepository @param:Inject constructor(
     @ApplicationContext private val context: Context,
     private val usageEventDao: UsageEventDao,
     private val deviceMetricsDao: DeviceMetricsDao,

@@ -11,7 +11,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class UsageRepository @Inject constructor(
+class UsageRepository @param:Inject constructor(
     @ApplicationContext private val context: Context,
     private val usageEventDao: UsageEventDao
 ) {
@@ -68,7 +68,7 @@ class UsageRepository @Inject constructor(
     private fun hasUsageStatsPermission(): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
         val mode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            appOps.unsafeCheckOpNoThrow(
+            appOps.checkOpNoThrow(
                 "android:get_usage_stats",
                 android.os.Process.myUid(),
                 context.packageName

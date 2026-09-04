@@ -20,7 +20,7 @@ import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 @Singleton
-class DeviceInfoProvider @Inject constructor(
+class DeviceInfoProvider @param:Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 

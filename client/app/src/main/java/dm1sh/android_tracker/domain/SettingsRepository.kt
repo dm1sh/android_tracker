@@ -16,7 +16,7 @@ import javax.inject.Singleton
 private val Context.dataStore by preferencesDataStore(name = "tracker_settings")
 
 @Singleton
-class SettingsRepository @Inject constructor(
+class SettingsRepository @param:Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
