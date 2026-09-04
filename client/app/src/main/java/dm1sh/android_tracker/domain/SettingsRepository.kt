@@ -29,6 +29,7 @@ class SettingsRepository @Inject constructor(
         private val KEY_LAST_PUSH_TIME = longPreferencesKey("last_push_time")
         private val KEY_LAST_FETCH_ERROR = stringPreferencesKey("last_fetch_error")
         private val KEY_LAST_PUSH_ERROR = stringPreferencesKey("last_push_error")
+        private val KEY_LAST_PUSH_REJECTED = stringPreferencesKey("last_push_rejected")
 
         const val DEFAULT_FETCH_INTERVAL_MIN = 30L
         const val DEFAULT_PUSH_INTERVAL_MIN = 60L
@@ -43,7 +44,8 @@ class SettingsRepository @Inject constructor(
         val lastFetchTime: Long = 0L,
         val lastPushTime: Long = 0L,
         val lastFetchError: String? = null,
-        val lastPushError: String? = null
+        val lastPushError: String? = null,
+        val lastPushRejected: String? = null
     ) {
         companion object {
             val DEFAULT_DEVICE_NAME: String = Build.MODEL.ifBlank { Build.DEVICE }
@@ -59,7 +61,8 @@ class SettingsRepository @Inject constructor(
             lastFetchTime = prefs[KEY_LAST_FETCH_TIME] ?: 0L,
             lastPushTime = prefs[KEY_LAST_PUSH_TIME] ?: 0L,
             lastFetchError = prefs[KEY_LAST_FETCH_ERROR],
-            lastPushError = prefs[KEY_LAST_PUSH_ERROR]
+            lastPushError = prefs[KEY_LAST_PUSH_ERROR],
+            lastPushRejected = prefs[KEY_LAST_PUSH_REJECTED]
         )
     }
 
@@ -89,10 +92,11 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    /** Atomically records the push run time and any error surfaced on that run. */
-    suspend fun setPushStatus(pushedAt: Long?, error: String?) {
+    /** Atomically records the push run time, any error, and rejection summary. */
+    suspend fun setPushStatus(pushedAt: Long?, error: String?, rejected: String? = null) {
         context.dataStore.edit {
             if (error == null) it.remove(KEY_LAST_PUSH_ERROR) else it[KEY_LAST_PUSH_ERROR] = error
+            if (rejected == null) it.remove(KEY_LAST_PUSH_REJECTED) else it[KEY_LAST_PUSH_REJECTED] = rejected
             if (pushedAt != null) it[KEY_LAST_PUSH_TIME] = pushedAt
         }
     }
@@ -112,6 +116,7 @@ class SettingsRepository @Inject constructor(
         context.dataStore.edit {
             it.remove(KEY_LAST_FETCH_ERROR)
             it.remove(KEY_LAST_PUSH_ERROR)
+            it.remove(KEY_LAST_PUSH_REJECTED)
         }
     }
 }

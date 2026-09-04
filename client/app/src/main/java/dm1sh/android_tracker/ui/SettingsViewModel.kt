@@ -51,6 +51,7 @@ class SettingsViewModel @Inject constructor(
         val lastPushTime: Long = 0L,
         val lastFetchError: String? = null,
         val lastPushError: String? = null,
+        val lastPushRejected: String? = null,
         val saving: Boolean = false,
         val healthCheck: HealthCheckState = HealthCheckState.Idle,
         val message: String? = null
@@ -86,7 +87,8 @@ class SettingsViewModel @Inject constructor(
                     lastFetchTime = s.lastFetchTime,
                     lastPushTime = s.lastPushTime,
                     lastFetchError = s.lastFetchError,
-                    lastPushError = s.lastPushError
+                    lastPushError = s.lastPushError,
+                    lastPushRejected = s.lastPushRejected
                 )
             }
         }

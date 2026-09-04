@@ -26,12 +26,26 @@ class ServerPushWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val now = System.currentTimeMillis()
         val result = syncRepository.sync()
+        val rejected = buildRejectionSummary(result)
         return if (result.error == null) {
-            settingsRepository.setPushStatus(pushedAt = now, error = null)
+            settingsRepository.setPushStatus(pushedAt = now, error = null, rejected = rejected)
             Result.success()
         } else {
-            settingsRepository.setPushStatus(pushedAt = now, error = result.error)
+            settingsRepository.setPushStatus(pushedAt = now, error = result.error, rejected = rejected)
             Result.failure()
         }
+    }
+
+    private fun buildRejectionSummary(result: SyncRepository.SyncResult): String? {
+        val parts = mutableListOf<String>()
+        if (result.rejectedUsage.isNotEmpty()) {
+            val detail = result.rejectedUsage.entries.joinToString { "${it.value}×${it.key}" }
+            parts.add("usage=$detail")
+        }
+        if (result.rejectedMetrics.isNotEmpty()) {
+            val detail = result.rejectedMetrics.entries.joinToString { "${it.value}×${it.key}" }
+            parts.add("metrics=$detail")
+        }
+        return if (parts.isEmpty()) null else parts.joinToString(", ")
     }
 }

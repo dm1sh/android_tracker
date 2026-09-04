@@ -16,9 +16,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Pushes all unsynced local rows to the server and marks only the
- * acknowledged records as synced. Failed/unacknowledged rows remain
- * unsynced and are retried on the next run.
+ * Pushes all unsynced local rows to the server and marks acknowledged records
+ * as synced. Rows rejected with reason "duplicate" are also marked synced
+ * (the server already has them). Other rejections remain unsynced for retry.
  */
 @Singleton
 class SyncRepository @Inject constructor(
@@ -32,6 +32,8 @@ class SyncRepository @Inject constructor(
     data class SyncResult(
         val pushedUsage: Int,
         val pushedMetrics: Int,
+        val rejectedUsage: Map<String, Int> = emptyMap(),
+        val rejectedMetrics: Map<String, Int> = emptyMap(),
         val error: String? = null
     )
 
@@ -47,6 +49,8 @@ class SyncRepository @Inject constructor(
 
         var pushedUsage = 0
         var pushedMetrics = 0
+        var rejectedUsage = emptyMap<String, Int>()
+        var rejectedMetrics = emptyMap<String, Int>()
 
         try {
             if (unsyncedUsage.isNotEmpty()) {
@@ -64,10 +68,15 @@ class SyncRepository @Inject constructor(
                 )
                 val response = trackerApi.pushUsageEvents(baseUrl, request)
                 val accepted = response.acceptedClientIds
-                if (accepted.isNotEmpty()) {
-                    usageEventDao.markSynced(accepted)
+                val duplicateIds = response.rejected
+                    .filter { it.reason == "duplicate" }
+                    .map { it.clientId }
+                val toSync = accepted + duplicateIds
+                if (toSync.isNotEmpty()) {
+                    usageEventDao.markSynced(toSync)
                 }
                 pushedUsage = accepted.size
+                rejectedUsage = reasonDistribution(response.rejected)
             }
 
             if (unsyncedMetrics.isNotEmpty()) {
@@ -88,17 +97,28 @@ class SyncRepository @Inject constructor(
                 )
                 val response = trackerApi.pushDeviceMetrics(baseUrl, request)
                 val accepted = response.acceptedClientIds
-                if (accepted.isNotEmpty()) {
-                    deviceMetricsDao.markSynced(accepted)
+                val duplicateIds = response.rejected
+                    .filter { it.reason == "duplicate" }
+                    .map { it.clientId }
+                val toSync = accepted + duplicateIds
+                if (toSync.isNotEmpty()) {
+                    deviceMetricsDao.markSynced(toSync)
                 }
                 pushedMetrics = accepted.size
+                rejectedMetrics = reasonDistribution(response.rejected)
             }
 
-            return SyncResult(pushedUsage, pushedMetrics)
+            return SyncResult(pushedUsage, pushedMetrics, rejectedUsage, rejectedMetrics)
         } catch (e: ResponseException) {
             return SyncResult(0, 0, error = "Server rejected request (${e.response.status.value})")
         } catch (e: Exception) {
             return SyncResult(0, 0, error = e.message ?: e.javaClass.simpleName)
         }
     }
+
+    private fun reasonDistribution(
+        rejected: List<dm1sh.android_tracker.data.remote.RejectedItem>
+    ): Map<String, Int> =
+        rejected.groupBy { it.reason ?: "unknown" }
+            .mapValues { it.value.size }
 }

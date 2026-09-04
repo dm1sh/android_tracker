@@ -3,6 +3,7 @@ package dm1sh.android_tracker.data.repository
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import dm1sh.android_tracker.data.ClientId
 import dm1sh.android_tracker.data.local.UsageEventDao
 import dm1sh.android_tracker.data.local.UsageEventEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -39,6 +40,12 @@ class UsageRepository @Inject constructor(
             events.getNextEvent(event)
             entities.add(
                 UsageEventEntity(
+                    id = ClientId.eventClientId(
+                        packageName = event.packageName ?: "",
+                        eventType = event.eventType,
+                        className = event.className,
+                        timestamp = event.timeStamp
+                    ),
                     eventType = event.eventType,
                     packageName = event.packageName ?: "",
                     className = event.className,

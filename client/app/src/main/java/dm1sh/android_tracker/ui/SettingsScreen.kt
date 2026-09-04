@@ -135,6 +135,12 @@ fun SettingsContent(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+                state.lastPushRejected?.let { rejected ->
+                    Text(
+                        "Push rejected: $rejected",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
 

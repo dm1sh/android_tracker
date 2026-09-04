@@ -1,5 +1,6 @@
 package dm1sh.android_tracker.data.repository
 
+import dm1sh.android_tracker.data.ClientId
 import dm1sh.android_tracker.data.local.DeviceMetricsDao
 import dm1sh.android_tracker.data.local.DeviceMetricsEntity
 import dm1sh.android_tracker.worker.DeviceInfoProvider
@@ -18,8 +19,14 @@ class MetricsRepository @Inject constructor(
      */
     suspend fun captureAndStore(): Long {
         val metrics = deviceInfoProvider.collect()
+        val now = System.currentTimeMillis()
         val entity = DeviceMetricsEntity(
-            capturedAt = System.currentTimeMillis(),
+            id = ClientId.metricClientId(
+                capturedAt = now,
+                batteryLevel = metrics.batteryLevel,
+                storageFreeBytes = metrics.storageFreeBytes
+            ),
+            capturedAt = now,
             batteryLevel = metrics.batteryLevel,
             batteryState = metrics.batteryState,
             storageFreeBytes = metrics.storageFreeBytes,
