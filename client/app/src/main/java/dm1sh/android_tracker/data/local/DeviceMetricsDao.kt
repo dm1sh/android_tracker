@@ -2,6 +2,7 @@ package dm1sh.android_tracker.data.local
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
@@ -12,7 +13,7 @@ interface DeviceMetricsDao {
     @Insert
     suspend fun insert(metric: DeviceMetricsEntity): Long
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(metrics: List<DeviceMetricsEntity>): List<Long>
 
     @Query("SELECT COUNT(*) FROM device_metrics")
