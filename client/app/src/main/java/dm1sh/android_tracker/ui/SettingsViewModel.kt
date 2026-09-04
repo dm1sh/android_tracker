@@ -41,7 +41,7 @@ class SettingsViewModel @Inject constructor(
         val serverUrl: String = "",
         val fetchIntervalMin: String = SettingsRepository.DEFAULT_FETCH_INTERVAL_MIN.toString(),
         val pushIntervalMin: String = SettingsRepository.DEFAULT_PUSH_INTERVAL_MIN.toString(),
-        val deviceId: String = SettingsRepository.Settings.DEFAULT_DEVICE_ID,
+        val deviceName: String = SettingsRepository.Settings.DEFAULT_DEVICE_NAME,
         val usageAccessGranted: Boolean = false,
         val localNetworkGranted: Boolean = false,
         val locationGranted: Boolean = false,
@@ -61,7 +61,7 @@ class SettingsViewModel @Inject constructor(
         val url: String,
         val fetchIntervalMin: Long,
         val pushIntervalMin: Long,
-        val deviceId: String
+        val deviceName: String
     )
 
     private var pendingSave: PendingSave? = null
@@ -82,7 +82,7 @@ class SettingsViewModel @Inject constructor(
                     serverUrl = s.serverUrl,
                     fetchIntervalMin = s.fetchIntervalMin.toString(),
                     pushIntervalMin = s.pushIntervalMin.toString(),
-                    deviceId = s.deviceId,
+                    deviceName = s.deviceName,
                     lastFetchTime = s.lastFetchTime,
                     lastPushTime = s.lastPushTime,
                     lastFetchError = s.lastFetchError,
@@ -104,8 +104,8 @@ class SettingsViewModel @Inject constructor(
         _state.value = _state.value.copy(pushIntervalMin = value)
     }
 
-    fun onDeviceIdChange(value: String) {
-        _state.value = _state.value.copy(deviceId = value)
+    fun onDeviceNameChange(value: String) {
+        _state.value = _state.value.copy(deviceName = value)
     }
 
     fun setUsageAccessGranted(granted: Boolean) {
@@ -146,7 +146,7 @@ class SettingsViewModel @Inject constructor(
         }
 
         val url = current.serverUrl.trim()
-        val deviceId = current.deviceId.ifBlank { SettingsRepository.Settings.DEFAULT_DEVICE_ID }
+        val deviceName = current.deviceName.ifBlank { SettingsRepository.Settings.DEFAULT_DEVICE_NAME }
         _state.value = current.copy(saving = true, message = null)
         viewModelScope.launch {
             if (url.isBlank()) {
@@ -159,13 +159,13 @@ class SettingsViewModel @Inject constructor(
 
             try {
                 val health = trackerApi.health(url)
-                pendingSave = PendingSave(url, fetch, push, deviceId)
+                pendingSave = PendingSave(url, fetch, push, deviceName)
                 _state.value = _state.value.copy(
                     healthCheck = HealthCheckState.Success(health.status, health.serverTime)
                 )
                 doSave(includeUrl = true)
             } catch (e: Exception) {
-                pendingSave = PendingSave(url, fetch, push, deviceId)
+                pendingSave = PendingSave(url, fetch, push, deviceName)
                 _state.value = _state.value.copy(
                     saving = false,
                     healthCheck = HealthCheckState.SavePrompt(e.message ?: e.javaClass.simpleName)
@@ -188,7 +188,7 @@ class SettingsViewModel @Inject constructor(
             }
             settingsRepository.updateFetchInterval(pending.fetchIntervalMin)
             settingsRepository.updatePushInterval(pending.pushIntervalMin)
-            settingsRepository.updateDeviceId(pending.deviceId)
+            settingsRepository.updateDeviceName(pending.deviceName)
             settingsRepository.clearErrors()
             workScheduler.rescheduleAll()
             pendingSave = null

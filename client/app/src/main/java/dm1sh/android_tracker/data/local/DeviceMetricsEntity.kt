@@ -13,10 +13,10 @@ data class DeviceMetricsEntity(
     val id: Long = 0,
     val capturedAt: Long,
     val batteryLevel: Int,
-    val batteryState: String,
+    val batteryState: Int?,
     val storageFreeBytes: Long,
     val storageTotalBytes: Long,
-    val networkState: String,
+    val networkState: Int?,
     val wifiSsid: String?,
     val synced: Boolean = false
 )

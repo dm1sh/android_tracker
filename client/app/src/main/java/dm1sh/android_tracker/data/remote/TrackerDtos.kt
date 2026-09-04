@@ -14,7 +14,7 @@ data class UsageEventDto(
 
 @Serializable
 data class UsageBatchRequest(
-    @SerialName("deviceId") val deviceId: String,
+    @SerialName("deviceName") val deviceName: String,
     @SerialName("events") val events: List<UsageEventDto>
 )
 
@@ -23,16 +23,16 @@ data class DeviceMetricDto(
     @SerialName("clientId") val clientId: Long,
     @SerialName("capturedAt") val capturedAt: Long,
     @SerialName("batteryLevel") val batteryLevel: Int,
-    @SerialName("batteryState") val batteryState: String,
+    @SerialName("batteryState") val batteryState: Int?,
     @SerialName("storageFreeBytes") val storageFreeBytes: Long,
     @SerialName("storageTotalBytes") val storageTotalBytes: Long,
-    @SerialName("networkState") val networkState: String,
+    @SerialName("networkState") val networkState: Int?,
     @SerialName("wifiSsid") val wifiSsid: String? = null
 )
 
 @Serializable
 data class MetricsBatchRequest(
-    @SerialName("deviceId") val deviceId: String,
+    @SerialName("deviceName") val deviceName: String,
     @SerialName("metrics") val metrics: List<DeviceMetricDto>
 )
 

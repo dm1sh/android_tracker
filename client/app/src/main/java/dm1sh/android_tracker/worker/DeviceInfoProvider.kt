@@ -26,10 +26,10 @@ class DeviceInfoProvider @Inject constructor(
 
     data class DeviceMetrics(
         val batteryLevel: Int,
-        val batteryState: String,
+        val batteryState: Int?,
         val storageFreeBytes: Long,
         val storageTotalBytes: Long,
-        val networkState: String,
+        val networkState: Int?,
         val wifiSsid: String?
     )
 
@@ -49,25 +49,27 @@ class DeviceInfoProvider @Inject constructor(
 
     // ---- Battery ----
 
-    private data class BatteryInfo(val level: Int, val state: String)
+    private data class BatteryInfo(val level: Int, val state: Int?)
 
     private fun readBattery(): BatteryInfo {
         val intent = context.registerReceiver(
             null,
             IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        ) ?: return BatteryInfo(-1, "UNKNOWN")
+        ) ?: return BatteryInfo(-1, null)
 
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         val levelPct = if (scale > 0 && level >= 0) (level * 100 / scale) else -1
 
+        // Raw BatteryManager.BATTERY_STATUS_* value: UNKNOWN=1, CHARGING=2,
+        // DISCHARGING=3, NOT_CHARGING=4, FULL=5. Anything else -> null.
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        val state = when (status) {
-            BatteryManager.BATTERY_STATUS_CHARGING -> "CHARGING"
-            BatteryManager.BATTERY_STATUS_FULL -> "FULL"
-            BatteryManager.BATTERY_STATUS_DISCHARGING -> "DISCHARGING"
-            BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "NOT_CHARGING"
-            else -> "UNKNOWN"
+        val state = status.takeIf {
+            it == BatteryManager.BATTERY_STATUS_UNKNOWN ||
+                it == BatteryManager.BATTERY_STATUS_CHARGING ||
+                it == BatteryManager.BATTERY_STATUS_DISCHARGING ||
+                it == BatteryManager.BATTERY_STATUS_NOT_CHARGING ||
+                it == BatteryManager.BATTERY_STATUS_FULL
         }
         return BatteryInfo(levelPct, state)
     }
@@ -85,7 +87,7 @@ class DeviceInfoProvider @Inject constructor(
 
     // ---- Network / SSID ----
 
-    private data class NetworkInfo(val type: String, val ssid: String?)
+    private data class NetworkInfo(val type: Int?, val ssid: String?)
 
     private fun readNetwork(): NetworkInfo {
         val connectivityManager =
@@ -94,18 +96,23 @@ class DeviceInfoProvider @Inject constructor(
         val activeNetwork = connectivityManager.activeNetwork
         val capabilities = activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
 
-        val type = when {
-            capabilities == null -> "NONE"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "WIFI"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "CELLULAR"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ETHERNET"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> "VPN"
-            else -> "OTHER"
+        // First present transport in precedence order, as a raw
+        // NetworkCapabilities.TRANSPORT_* value (CELLULAR=0, WIFI=1,
+        // BLUETOOTH=2, ETHERNET=3). NONE/VPN/OTHER -> null.
+        val transports = listOf(
+            NetworkCapabilities.TRANSPORT_WIFI,
+            NetworkCapabilities.TRANSPORT_CELLULAR,
+            NetworkCapabilities.TRANSPORT_ETHERNET,
+            NetworkCapabilities.TRANSPORT_BLUETOOTH
+        )
+        val type = capabilities?.let { caps ->
+            transports.firstOrNull { caps.hasTransport(it) }
         }
 
         val ssid = when {
-            // No active network -> not connected -> null
-            capabilities == null || type == "CELLULAR" || type == "NONE" -> null
+            // No active network -> not connected -> null; also null for
+            // cellular / no transport.
+            capabilities == null || type == NetworkCapabilities.TRANSPORT_CELLULAR || type == null -> null
             else -> readWifiSsid(connectivityManager)
         }
 

@@ -35,7 +35,7 @@ fun SettingsContent(
     onServerUrlChange: (String) -> Unit,
     onFetchIntervalChange: (String) -> Unit,
     onPushIntervalChange: (String) -> Unit,
-    onDeviceIdChange: (String) -> Unit,
+    onDeviceNameChange: (String) -> Unit,
     onSave: () -> Unit,
     onRunLocalUpdate: () -> Unit,
     onRunPush: () -> Unit,
@@ -91,9 +91,9 @@ fun SettingsContent(
                 )
 
                 OutlinedTextField(
-                    value = state.deviceId,
-                    onValueChange = onDeviceIdChange,
-                    label = { Text("Device ID") },
+                    value = state.deviceName,
+                    onValueChange = onDeviceNameChange,
+                    label = { Text("Device name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

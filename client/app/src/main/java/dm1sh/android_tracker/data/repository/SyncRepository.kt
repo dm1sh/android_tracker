@@ -51,7 +51,7 @@ class SyncRepository @Inject constructor(
         try {
             if (unsyncedUsage.isNotEmpty()) {
                 val request = UsageBatchRequest(
-                    deviceId = settings.deviceId,
+                    deviceName = settings.deviceName,
                     events = unsyncedUsage.map {
                         UsageEventDto(
                             clientId = it.id,
@@ -72,7 +72,7 @@ class SyncRepository @Inject constructor(
 
             if (unsyncedMetrics.isNotEmpty()) {
                 val request = MetricsBatchRequest(
-                    deviceId = settings.deviceId,
+                    deviceName = settings.deviceName,
                     metrics = unsyncedMetrics.map {
                         DeviceMetricDto(
                             clientId = it.id,

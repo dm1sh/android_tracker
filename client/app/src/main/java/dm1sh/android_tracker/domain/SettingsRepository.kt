@@ -24,7 +24,7 @@ class SettingsRepository @Inject constructor(
         private val KEY_SERVER_URL = stringPreferencesKey("server_url")
         private val KEY_FETCH_INTERVAL_MIN = longPreferencesKey("fetch_interval_min")
         private val KEY_PUSH_INTERVAL_MIN = longPreferencesKey("push_interval_min")
-        private val KEY_DEVICE_ID = stringPreferencesKey("device_id")
+        private val KEY_DEVICE_NAME = stringPreferencesKey("device_id")
         private val KEY_LAST_FETCH_TIME = longPreferencesKey("last_fetch_time")
         private val KEY_LAST_PUSH_TIME = longPreferencesKey("last_push_time")
         private val KEY_LAST_FETCH_ERROR = stringPreferencesKey("last_fetch_error")
@@ -39,14 +39,14 @@ class SettingsRepository @Inject constructor(
         val serverUrl: String = "",
         val fetchIntervalMin: Long = DEFAULT_FETCH_INTERVAL_MIN,
         val pushIntervalMin: Long = DEFAULT_PUSH_INTERVAL_MIN,
-        val deviceId: String = DEFAULT_DEVICE_ID,
+        val deviceName: String = DEFAULT_DEVICE_NAME,
         val lastFetchTime: Long = 0L,
         val lastPushTime: Long = 0L,
         val lastFetchError: String? = null,
         val lastPushError: String? = null
     ) {
         companion object {
-            val DEFAULT_DEVICE_ID: String = Build.MODEL.ifBlank { Build.DEVICE }
+            val DEFAULT_DEVICE_NAME: String = Build.MODEL.ifBlank { Build.DEVICE }
         }
     }
 
@@ -55,7 +55,7 @@ class SettingsRepository @Inject constructor(
             serverUrl = prefs[KEY_SERVER_URL] ?: "",
             fetchIntervalMin = prefs[KEY_FETCH_INTERVAL_MIN] ?: DEFAULT_FETCH_INTERVAL_MIN,
             pushIntervalMin = prefs[KEY_PUSH_INTERVAL_MIN] ?: DEFAULT_PUSH_INTERVAL_MIN,
-            deviceId = prefs[KEY_DEVICE_ID] ?: Settings.DEFAULT_DEVICE_ID,
+            deviceName = prefs[KEY_DEVICE_NAME] ?: Settings.DEFAULT_DEVICE_NAME,
             lastFetchTime = prefs[KEY_LAST_FETCH_TIME] ?: 0L,
             lastPushTime = prefs[KEY_LAST_PUSH_TIME] ?: 0L,
             lastFetchError = prefs[KEY_LAST_FETCH_ERROR],
@@ -77,8 +77,8 @@ class SettingsRepository @Inject constructor(
         context.dataStore.edit { it[KEY_PUSH_INTERVAL_MIN] = minutes }
     }
 
-    suspend fun updateDeviceId(deviceId: String) {
-        context.dataStore.edit { it[KEY_DEVICE_ID] = deviceId }
+    suspend fun updateDeviceName(deviceName: String) {
+        context.dataStore.edit { it[KEY_DEVICE_NAME] = deviceName }
     }
 
     /** Atomically records the fetch run time and any error surfaced on that run. */
