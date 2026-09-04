@@ -23,18 +23,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Validate Gradle wrapper
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          validation-action: validate
 
       - name: Grant execute permission for gradlew
         working-directory: client
